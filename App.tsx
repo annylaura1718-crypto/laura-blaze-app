@@ -100,6 +100,10 @@ const AdminPanel = ({ isOpen, onClose, systemStatus, setSystemStatus }: { isOpen
     const [activeTab, setActiveTab] = useState<'control' | 'users' | 'feedbacks'>('control');
     const [users, setUsers] = useState<User[]>([]);
     const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+    const [newUserEmail, setNewUserEmail] = useState('');
+    const [newUserPassword, setNewUserPassword] = useState('');
+    const [newUserError, setNewUserError] = useState('');
+    const [newUserSuccess, setNewUserSuccess] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -128,6 +132,40 @@ const AdminPanel = ({ isOpen, onClose, systemStatus, setSystemStatus }: { isOpen
             localStorage.setItem('laura_users', JSON.stringify(updatedUsers));
         }
     }
+
+
+    const handleCreateUserManually = (e: React.FormEvent) => {
+        e.preventDefault();
+        setNewUserError('');
+        setNewUserSuccess('');
+
+        if (!newUserEmail || !newUserPassword) {
+            setNewUserError('Preencha o e-mail e a senha.');
+            return;
+        }
+
+        const storedUsers: User[] = JSON.parse(localStorage.getItem('laura_users') || '[]');
+
+        if (storedUsers.find(u => u.email === newUserEmail)) {
+            setNewUserError('Já existe um usuário com esse e-mail.');
+            return;
+        }
+
+        const newUser: User = {
+            email: newUserEmail,
+            password: newUserPassword,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+        };
+
+        const updated = [...storedUsers, newUser];
+        localStorage.setItem('laura_users', JSON.stringify(updated));
+        setUsers(updated);
+
+        setNewUserEmail('');
+        setNewUserPassword('');
+        setNewUserSuccess('Usuário criado e liberado com sucesso!');
+    };
 
     if (!isOpen) return null;
 
@@ -161,20 +199,106 @@ const AdminPanel = ({ isOpen, onClose, systemStatus, setSystemStatus }: { isOpen
                         </div>
                     )}
                     {activeTab === 'users' && (
-                        <div>
-                             <div className="bg-zinc-900/30 p-4 rounded-lg mb-6 border border-zinc-800 flex items-start gap-3"><CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={16} /><p className="text-xs text-zinc-400">Aprove os pagamentos clicando no botão verde. O usuário terá acesso imediato após a aprovação.</p></div>
-                            {users.length === 0 ? <div className="text-center py-10 text-zinc-500">Nenhum usuário cadastrado.</div> : (
+                        <div className="space-y-6">
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800">
+                                <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                                    <UserPlus size={16} className="text-emerald-400" />
+                                    Criar usuário manualmente
+                                </h3>
+                                <p className="text-[11px] text-zinc-500 mb-4">
+                                    Aqui você cria o acesso do cliente manualmente, sem passar pela tela de pagamento.
+                                    Depois é só enviar o e-mail e a senha pra ele.
+                                </p>
+                                <form onSubmit={handleCreateUserManually} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                    <div>
+                                        <label className="block text-[11px] text-zinc-500 mb-1">E-mail do cliente</label>
+                                        <input
+                                            type="email"
+                                            value={newUserEmail}
+                                            onChange={(e) => setNewUserEmail(e.target.value)}
+                                            className="w-full bg-black/40 border border-zinc-700 rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                                            placeholder="cliente@email.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] text-zinc-500 mb-1">Senha que você vai enviar</label>
+                                        <input
+                                            type="text"
+                                            value={newUserPassword}
+                                            onChange={(e) => setNewUserPassword(e.target.value)}
+                                            className="w-full bg-black/40 border border-zinc-700 rounded-lg px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                                            placeholder="Ex: laura123@"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="h-[38px] px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        Criar e liberar
+                                    </button>
+                                </form>
+                                {newUserError && (
+                                    <p className="text-[11px] text-red-400 mt-2">
+                                        {newUserError}
+                                    </p>
+                                )}
+                                {newUserSuccess && (
+                                    <p className="text-[11px] text-emerald-400 mt-2">
+                                        {newUserSuccess}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="bg-zinc-900/30 p-4 rounded-xl border border-zinc-800">
+                                <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                                    <UserCheck size={16} className="text-emerald-400" />
+                                    Aprovação manual de clientes
+                                </h3>
+                                <p className="text-[11px] text-zinc-500">
+                                    Aqui você vê todos os clientes cadastrados. Os que estão <span className="text-yellow-400 font-semibold">PENDENTES</span> são os criados pelo fluxo antigo (com pagamento ainda em análise).
+                                    Ao aprovar, o status muda para <span className="text-emerald-400 font-semibold">ATIVO</span> e o usuário terá acesso imediato após a aprovação.
+                                </p>
+                            </div>
+                            {users.length === 0 ? (
+                                <div className="text-center py-10 text-zinc-500">Nenhum usuário cadastrado.</div>
+                            ) : (
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="bg-zinc-900/50 text-[10px] uppercase text-zinc-500 font-bold sticky top-0"><tr><th className="p-3">Email</th><th className="p-3">Data</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead>
+                                    <thead className="bg-zinc-900/60">
+                                        <tr>
+                                            <th className="p-3 text-xs text-zinc-500">E-mail</th>
+                                            <th className="p-3 text-xs text-zinc-500">Criado em</th>
+                                            <th className="p-3 text-xs text-zinc-500">Status</th>
+                                            <th className="p-3 text-xs text-zinc-500 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
                                     <tbody className="divide-y divide-zinc-800">
                                         {users.map((user) => (
                                             <tr key={user.email} className="hover:bg-zinc-900/30 transition-colors">
                                                 <td className="p-3 text-xs text-zinc-300 font-mono">{user.email}</td>
                                                 <td className="p-3 text-xs text-zinc-500">{new Date(user.createdAt).toLocaleDateString()}</td>
-                                                <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${user.status === 'active' ? 'bg-green-900/30 text-green-500 border border-green-900' : 'bg-yellow-900/30 text-yellow-500 border border-yellow-900 animate-pulse'}`}>{user.status === 'active' ? 'ATIVO' : 'PENDENTE'}</span></td>
-                                                <td className="p-3 flex justify-end gap-2">
-                                                    <button onClick={() => toggleStatus(user.email)} className={`p-1.5 rounded transition-all transform active:scale-95 ${user.status === 'pending' ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_10px_green] animate-pulse' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'}`}><CheckCircle2 size={16} /></button>
-                                                    <button onClick={() => deleteUser(user.email)} className="p-1.5 rounded bg-red-900/20 hover:bg-red-900/50 text-red-500 transition-colors"><Trash2 size={16} /></button>
+                                                <td className="p-3 text-xs">
+                                                    <span
+                                                        className={`px-2 py-1 rounded-full text-[10px] font-semibold ${
+                                                            user.status === 'active'
+                                                                ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-900'
+                                                                : 'bg-yellow-900/30 text-yellow-400 border border-yellow-900'
+                                                        }`}
+                                                    >
+                                                        {user.status === 'active' ? 'ATIVO' : 'PENDENTE'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-xs flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => toggleStatus(user.email)}
+                                                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-200"
+                                                    >
+                                                        Alternar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteUser(user.email)}
+                                                        className="px-2 py-1 rounded-lg bg-red-900/40 hover:bg-red-800/60 text-[10px] text-red-300"
+                                                    >
+                                                        Excluir
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -182,8 +306,7 @@ const AdminPanel = ({ isOpen, onClose, systemStatus, setSystemStatus }: { isOpen
                                 </table>
                             )}
                         </div>
-                    )}
-                    {activeTab === 'feedbacks' && (
+                    )}{activeTab === 'feedbacks' && (
                         <div>
                              {feedbacks.length === 0 ? <div className="text-center py-10 text-zinc-500">Caixa de entrada vazia.</div> : (
                                 <div className="space-y-4">
@@ -237,6 +360,7 @@ const LoginPage = ({ onLogin, onGoToRegister }: { onLogin: (isAdmin: boolean) =>
                 <div className="w-16 h-16 border-2 border-red-600 rounded-full mx-auto mb-4 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.5)]"><Bot className="text-red-500 w-8 h-8" /></div>
                 <h1 className="text-3xl font-black italic text-white neon-text-red brand-font">LAURA <span className="text-red-600">AI</span></h1>
                 <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest">Acesso Restrito</p>
+                <p className="text-zinc-500 text-[11px] mt-2">Acesso apenas para clientes liberados manualmente pela <span className="font-semibold text-white">LAURA</span>. Para ter acesso, fale diretamente comigo. 💖</p>
             </div>
             <form onSubmit={handleLogin} className="space-y-4">
                 {error && (<div className="bg-red-950/40 border border-red-500/50 p-4 rounded-lg flex items-start gap-3"><AlertTriangle className="text-red-500 shrink-0" size={18} /><p className="text-red-200 text-xs font-bold leading-relaxed">{error}</p></div>)}
@@ -244,7 +368,7 @@ const LoginPage = ({ onLogin, onGoToRegister }: { onLogin: (isAdmin: boolean) =>
                 <div><label className="block text-zinc-500 text-[10px] uppercase font-bold mb-1">Senha</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-lg p-3 text-white focus:border-red-600 focus:outline-none transition-colors" placeholder="••••••••"/></div>
                 <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] mt-6 flex items-center justify-center gap-2"><LogIn size={18} /> Acessar App</button>
             </form>
-            <div className="mt-8 pt-6 border-t border-zinc-900 text-center"><p className="text-zinc-600 text-xs mb-3">Ainda não tem acesso?</p><button onClick={onGoToRegister} className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg border border-zinc-800 transition-colors flex items-center justify-center gap-2 group"><UserPlus size={14} className="text-red-500 group-hover:text-white transition-colors" /> Criar Conta Premium</button></div>
+            <div className="mt-8 pt-6 border-t border-zinc-900 text-center"><p className="text-zinc-600 text-xs mb-3">Ainda não tem acesso?</p><button onClick={() => alert('Entre em contato com a LAURA para solicitar seu acesso. Eu mesma vou criar seu e-mail e senha e liberar você no sistema. ❤️')} className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg border border-zinc-800 transition-colors flex items-center justify-center gap-2 group"><UserPlus size={14} className="text-red-500 group-hover:text-white transition-colors" /> Criar Conta Premium</button></div>
         </div>
     </div>
   );
